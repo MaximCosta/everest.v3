@@ -1,5 +1,5 @@
 import { gql, useQuery } from "@apollo/client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useHistory } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -14,6 +14,8 @@ import {
     FormControl,
     Select,
     InputLabel,
+    CardActions,
+    Button,
 } from "@material-ui/core";
 
 import ToggleButton from "@material-ui/lab/ToggleButton";
@@ -22,6 +24,8 @@ import ToggleButtonGroup from "@material-ui/lab/ToggleButtonGroup";
 import { makeStyles } from "@material-ui/core/styles";
 import { ViewModule, ViewList } from "@material-ui/icons";
 import { Skeleton } from "@material-ui/lab";
+
+import firebase from "firebase";
 
 const ELEC = gql`
     query SearchProducts {
@@ -276,11 +280,68 @@ function ExchangeRates({ mode }) {
     return data.products.items.map((item) => <CardProduct item={item} />);
 }
 
+function EventCard({ event }) {
+    const classes = useStyles();
+    return (
+        <Card className={classes.root}>
+            <CardMedia
+                component="img"
+                alt="Contemplative Reptile"
+                height="140"
+                image={event.image}
+                title="Contemplative Reptile"
+            />
+            <CardContent>
+                <Typography gutterBottom variant="h5" component="h2">
+                    {event.title}
+                </Typography>
+                <Typography variant="body2" color="textSecondary" component="p">
+                    {event.desc}
+                </Typography>
+            </CardContent>
+            <CardActions>
+                <Button size="small" color="primary">
+                    Learn More
+                </Button>
+            </CardActions>
+        </Card>
+    );
+}
+function EventSkeleton() {
+    const classes = useStyles();
+    return (
+        <Card className={classes.root}>
+            <Skeleton animation="wave" variant="rect" height={140} />
+            <CardContent>
+                <React.Fragment>
+                    <Skeleton
+                        animation="wave"
+                        height={10}
+                        style={{ marginBottom: 6 }}
+                    />
+                    <Skeleton animation="wave" height={10} width="80%" />
+                </React.Fragment>
+            </CardContent>
+            <CardActions>
+                <Button size="small" color="primary">
+                    Learn More
+                </Button>
+            </CardActions>
+        </Card>
+    );
+}
+
+function RenderEvent({ events }) {
+    if (!events.length) return <EventSkeleton />;
+    return events.map((event) => <EventCard event={event} />);
+}
+
 export default function Dashboard() {
     const [error, setError] = useState("");
     const { currentUser, logout } = useAuth();
     const history = useHistory();
     const [mode, setMode] = useState("list");
+    const [events, setEvents] = useState([]);
 
     const handleChange = (event, nextView) => {
         if (nextView) setMode(nextView);
@@ -296,6 +357,20 @@ export default function Dashboard() {
         }
     }
 
+    useEffect(() => {
+        firebase
+            .firestore()
+            .collection("NewEvents")
+            .get()
+            .then((snapshot) => {
+                let snap_event = [];
+                snapshot.forEach((child) => {
+                    snap_event.push(child.data());
+                });
+                setEvents(snap_event);
+            });
+    }, []);
+
     return (
         <div>
             <div>
@@ -308,6 +383,9 @@ export default function Dashboard() {
             </div>
             <button onClick={handleLogout}>Logout</button>
             <br />
+            <br />
+            <br />
+            <RenderEvent events={events} />
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <ToggleButtonGroup
                     value={mode}
